@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>单词家族生成器 (终极防套娃修复版)</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="apple-touch-icon" href="./icon-192.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -279,6 +282,15 @@
 <div id="stagingArea"></div>
 
 <script>
+// 🌟 新增：注册 PWA 的离线引擎
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('✅ PWA 离线引擎注册成功!', reg.scope))
+            .catch(err => console.error('❌ PWA 注册失败:', err));
+    });
+}
+
 function toggleFullScreen() {
     const doc = document;
     const de = doc.documentElement;
