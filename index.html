@@ -98,6 +98,11 @@
         .theme-swiss { --card-bg: #ffffff; --text-color: #1d3557; --border-color: #e63946; --accent: #e63946; --bg-img: linear-gradient(90deg, #f1faee 1px, transparent 1px); }
         .theme-dream { --card-bg: #ffffff; --text-color: #4a148c; --border-color: #ce93d8; --accent: #9c27b0; --bg-img: linear-gradient(180deg, #f3e5f5 0%, #ffffff 100%); }
         .theme-industrial { --card-bg: #2b2b2b; --text-color: #ffffff; --border-color: #444; --accent: #ffb400; --bg-img: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px); }
+        .theme-oled { --card-bg: #000000; --text-color: #00ff41; --border-color: #008f11; --accent: #00ff41; --bg-img: none; }
+        .theme-oled .top-section, .theme-oled .bottom-section, .theme-oled .center-word, .theme-oled .word-item, .theme-oled .header-box { background: rgba(0, 20, 0, 0.9) !important; color: #00ff41 !important; border-color: #008f11 !important; box-shadow: 0 0 10px rgba(0, 255, 65, 0.1); }
+        .theme-oled .zh-translation { color: #008f11; border-top-color: #004400; }
+        .theme-oled .def-item { background: rgba(0, 40, 0, 0.4); }
+        .theme-oled .def-item div { color: #00ff41 !important; }
 
         .card-container {
             width: 500px; 
@@ -234,26 +239,13 @@
 </head>
 <body>
 
-<div class="top-bar">
-    <button class="icon-btn" onclick="toggleFullScreen()">⛶ 全屏切换</button>
-    <button class="icon-btn" onclick="forceSync()">🔄 强制同步云端</button>
-</div>
-
 <div class="config-panel">
     <h3>🧙‍♀️Catchase单词家族点读卡</h3>
-
-    <select id="themeSelect" onchange="updateAllCardsTheme()" style="width:100%; padding:10px; margin-bottom:10px; background:rgba(0,0,0,0.2); color:white; border-radius:8px; border:1px solid rgba(255,255,255,0.2);">
-        <option value="modern">✨ 现代简约 (Modern)</option>
-        <option value="academia">📜 深夜学院 (Academia)</option>
-        <option value="botanical">🌿 植物图鉴 (Botanical)</option>
-        <option value="zen">🍵 枯山淡墨 (Zen)</option>
-        <option value="nordic">❄️ 北欧极简 (Nordic)</option>
-        <option value="royal">👑 宫廷典雅 (Royal)</option>
-        <option value="coffee">☕ 咖啡手账 (Coffee)</option>
-        <option value="swiss">📐 包豪斯红 (Swiss)</option>
-        <option value="dream">🦄 幻梦云端 (Dream)</option>
-        <option value="industrial">🏗️ 工业废墟 (Industrial)</option>
-    </select>
+    
+    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+        <button class="icon-btn" style="flex: 1; justify-content: center;" onclick="toggleFullScreen()">⛶ 全屏切换</button>
+        <button class="icon-btn" style="flex: 1; justify-content: center;" onclick="forceSync()">🔄 强制同步云端</button>
+    </div>
     
     
     <div id="syncStatus" style="margin: 10px 0; padding: 12px; background: rgba(255, 235, 59, 0.1); border: 1px solid rgba(255, 235, 59, 0.3); border-radius: 8px; color: #ffeb3b; font-size: 13px; display: none; text-align: center; line-height: 1.5;"></div>
@@ -399,7 +391,7 @@ function abortGeneration() {
 
 function createBaseCardDOM(data) {
     const card = document.createElement('div');
-    const theme = document.getElementById('themeSelect').value;
+    const theme = "oled";
     card.className = `card-container theme-${theme}`;
 
     const topSec = document.createElement('div');
@@ -650,8 +642,6 @@ async function renderCategory(category) {
         wrapper.innerText = data.theme;
         wrapper.onclick = async () => {
             if (!generatedDOMs[i]) {
-                const originalTheme = document.getElementById('themeSelect').value;
-                if (data.ui) document.getElementById('themeSelect').value = data.ui;
                 const cardDOM = createBaseCardDOM(data);
                 stagingArea.appendChild(cardDOM);
                 await applyAutoFitLogic(cardDOM);
@@ -660,7 +650,6 @@ async function renderCategory(category) {
                 const canvas = await html2canvas(cardDOM, { scale: 2, backgroundColor: null });
                 generatedImagesData[i] = { theme: data.theme, dataUrl: canvas.toDataURL('image/png') };
                 cardDOM.remove();
-                document.getElementById('themeSelect').value = originalTheme;
             }
             openLightbox(i);
         };
@@ -673,23 +662,7 @@ async function renderCategory(category) {
     }
 }
 
-async function updateAllCardsTheme() {
-    const theme = document.getElementById('themeSelect').value;
-    // 遍历所有数据，清空已有的 DOM 缓存和图片缓存，强制在下次访问时重绘
-    for (let i = 0; i < rawResultsData.length; i++) {
-        if (!rawResultsData[i]) continue;
-        rawResultsData[i].ui = theme;
-        
-        // 重置缓存以便下次访问时触发重新渲染
-        generatedDOMs[i] = null;
-        generatedImagesData[i] = null;
-    }
-    
-    // 如果相册开着，强制重新生成当前索引卡片
-    if (document.getElementById('lightbox').style.display === 'flex') {
-        await triggerLazyLoad(currentGalleryIndex);
-    }
-}
+async function updateAllCardsTheme() { /* 多主题选择器已移除 */ }
 
 // --- 相册功能函数 ---
 function openLightbox(index) {
@@ -801,7 +774,7 @@ function downloadAllData() {
     const validData = rawResultsData.filter(item => item !== null);
     if(validData.length === 0) return;
 
-    const uiTheme = document.getElementById('themeSelect').value;
+    const uiTheme = "oled";
     
     let jsonlContent = "";
     validData.forEach(data => {
