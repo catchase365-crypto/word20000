@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单词家族生成器 (终极防套娃修复版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #7d5a50;
+            --bg-grid: #f4f8ff;
+        }
+
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #2b324c 0%, #16213e 50%, #2b324c 100%);
+            color: #e0e0e0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+
+        .top-bar { width: 100%; max-width: 600px; display: flex; justify-content: flex-start; gap: 10px; margin-bottom: 12px; } .icon-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; backdrop-filter: blur(5px); transition: all 0.2s; display: flex; align-items: center; gap: 5px; } .icon-btn:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.4); } .config-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 600px;
+            box-sizing: border-box;
+        }
+        
+        h3 { margin-top: 0; color: #fff; text-align: center; text-shadow: 0 0 10px rgba(255, 255, 255, 0.2); }
+        .tips { font-size: 12px; color: #bbb; margin-bottom: 8px; display: block; text-align: center; }
+        
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+            color: white;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+        button {
+            flex: 1; padding: 14px; background: #4e73df; color: white;
+            border: none; border-radius: 8px; font-size: 16px; font-weight: bold;
+            cursor: pointer; transition: background 0.3s;
+        }
+        button:hover { background: #375abd; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #downloadBtn { background: #28a745; display: none; }
+        #downloadDataBtn { background: #ff9800; display: none; }
+
+        .results-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px; width: 100%; max-width: 1200px;
+        }
+        @media (max-width: 768px) { .results-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+
+        .image-wrapper {
+            cursor: pointer;
+            background: white; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            aspect-ratio: 9 / 19.5; position: relative;
+        }
+        .result-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .status-text { font-size: 14px; color: #666; text-align: center; padding: 10px; }
+        .error-text { color: #dc3545; font-weight: bold; }
+
+        /* ------------------ 渲染区样式 ------------------ */
+        #stagingArea { position: absolute; top: -9999px; left: -9999px; opacity: 0; pointer-events: none; }
+        
+        .theme-modern { --card-bg: #f4f8ff; --text-color: #333; --border-color: #b0c4de; --accent: #4e73df; --bg-img: linear-gradient(#e0eaff 1px, transparent 1px), linear-gradient(90deg, #e0eaff 1px, transparent 1px); }
+        .theme-academia { --card-bg: #1a1e26; --text-color: #d4af37; --border-color: #3e4451; --accent: #d4af37; --bg-img: radial-gradient(circle at 2px 2px, rgba(212,175,55,0.05) 1px, transparent 0); }
+        .theme-botanical { --card-bg: #fcfdfa; --text-color: #2d5a27; --border-color: #e2e8e0; --accent: #2e7d32; --bg-img: linear-gradient(135deg, #f5f7f2 25%, transparent 25%), linear-gradient(225deg, #f5f7f2 25%, transparent 25%); }
+        .theme-zen { --card-bg: #f9f7f2; --text-color: #4a4a4a; --border-color: #dcd7c9; --accent: #8b8378; --bg-img: none; }
+        .theme-nordic { --card-bg: #eceff4; --text-color: #2e3440; --border-color: #d8dee9; --accent: #5e81ac; --bg-img: linear-gradient(transparent 19px, #d8dee9 20px); }
+        .theme-royal { --card-bg: #2d0a31; --text-color: #e0b0ff; --border-color: #4a154b; --accent: #ff00ff; --bg-img: repeating-linear-gradient(45deg, rgba(74,21,75,0.1) 0px, rgba(74,21,75,0.1) 2px, transparent 2px, transparent 10px); }
+        .theme-coffee { --card-bg: #f3ece0; --text-color: #5d4037; --border-color: #d7ccc8; --accent: #8d6e63; --bg-img: radial-gradient(#d7ccc8 1px, transparent 0); }
+        .theme-swiss { --card-bg: #ffffff; --text-color: #1d3557; --border-color: #e63946; --accent: #e63946; --bg-img: linear-gradient(90deg, #f1faee 1px, transparent 1px); }
+        .theme-dream { --card-bg: #ffffff; --text-color: #4a148c; --border-color: #ce93d8; --accent: #9c27b0; --bg-img: linear-gradient(180deg, #f3e5f5 0%, #ffffff 100%); }
+        .theme-industrial { --card-bg: #2b2b2b; --text-color: #ffffff; --border-color: #444; --accent: #ffb400; --bg-img: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px); }
+
+        .card-container {
+            width: 500px; 
+            height: 1083px; 
+            contain: content; 
+            transition: all 0.5s ease;
+            background-color: var(--card-bg, #f4f8ff);
+            background-image: var(--bg-img);
+            background-size: 40px 40px;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            display: flex; flex-direction: column;
+            padding: 10px 25px 20px 25px; color: #333;
+            overflow: hidden; 
+        }
+
+        .header-box {
+            background: white; border: 2px solid #b0c4de;
+            width: 75%; margin: 0 auto 10px auto; text-align: center;
+            padding: 6px; font-size: 20px; font-weight: bold;
+            color: var(--accent, var(--primary-color)); border-radius: 4px; border-color: var(--border-color);
+            box-shadow: 2px 2px 0px #b0c4de; flex-shrink: 0;
+        }
+
+        .top-section {
+            background: rgba(255, 255, 255, 0.7); padding: 12px 20px;
+            border-radius: 12px; margin-bottom: 12px; margin-top: 52px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid rgba(176, 196, 222, 0.3);
+            flex-shrink: 0;
+        }
+        
+        .en-paragraph { 
+            font-weight: 500; 
+            font-size: 17px; 
+            line-height: 2.5; 
+            margin-bottom: 10px; 
+            transition: all 0.2s;
+            text-align: justify; 
+        }
+        .zh-translation { font-size: 15px; color: #555; border-top: 1px dashed #ccc; padding-top: 15px; margin-top: 5px; line-height: 1.6;}
+        
+        .middle-tree {
+            flex-grow: 1; position: relative;
+            min-height: 280px; 
+            width: 100%; margin-bottom: 10px;
+        }
+        
+        .center-word {
+            position: absolute; font-size: 20px; font-weight: bold;
+            background: white; padding: 8px 16px; border: 1px solid #b0c4de;
+            border-radius: 6px; z-index: 100; white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
+        .word-item {
+            position: absolute; font-size: 16px; color: #333; z-index: 110;
+            background: white; padding: 4px 8px; border-radius: 4px;
+            font-weight: 600; white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #eee;
+        }
+        .line { position: absolute; height: 2px; transform-origin: left center; z-index: 5; }
+
+        .bottom-section {
+            background: rgba(255, 255, 255, 0.85); padding: 20px;
+            border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+            border: 1px solid rgba(176, 196, 222, 0.5); flex-shrink: 0;
+            display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start;
+            min-height: 150px;
+        }
+        
+        .def-item {
+            font-size: 14px; line-height: 1.4; background: rgba(240, 244, 255, 0.6);
+            padding: 4px 8px; border-radius: 6px; display: inline-flex; align-items: center;
+        }
+
+        .en-paragraph mark.hl {
+            display: inline-block; 
+            margin: 2px 4px;       
+            line-height: 1.2;      
+        }
+
+        mark.hl { border-radius: 4px; padding: 2px 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); color: #111; }
+        /* 预览相册样式 */
+        .lightbox {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000; z-index: 2000;
+            display: none; justify-content: center; align-items: center; touch-action: none;
+            overflow: hidden;
+        }
+        .lightbox-img { width: 100vw; height: 100vh; object-fit: contain; transition: transform 0.3s; flex-shrink: 1; min-width: 0; min-height: 0; }
+
+        .lightbox-inner { 
+            position: relative; 
+            width: 100%; 
+            height: 100%; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            background: #000;
+        }
+        .lightbox-close {
+            position: absolute; top: 10px; right: 10px; color: white;
+            font-size: 35px; cursor: pointer; z-index: 2100; width: 40px; height: 40px; text-align: center; line-height: 40px;
+        }
+        .lightbox-counter { position: absolute; top: 20px; left: 20px; color: white; font-size: 16px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; z-index: 2100; }
+
+        /* 分类导航栏样式 */
+        .category-tabs {
+            width: 100%; max-width: 1200px; margin: 0 auto 15px auto;
+            display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+        }
+        .category-tab {
+            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer;
+            font-size: 14px; transition: all 0.2s;
+        }
+        .category-tab.active {
+            background: #4e73df; border-color: #4e73df; font-weight: bold;
+        }
+        /* iOS/iPhone 兼容模拟全屏样式 */
+        body.is-pseudo-fullscreen {
+            padding: 0 !important;
+            margin: 0 !important;
+            height: 100vh;
+            overflow: auto;
+        }
+        body.is-pseudo-fullscreen .top-bar {
+            padding-top: env(safe-area-inset-top);
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <button class="icon-btn" onclick="toggleFullScreen()">⛶ 全屏切换</button>
+    <!-- 此处可预留更多功能按钮 -->
+</div>
+
+<div class="config-panel">
+    <h3>📖单词家族批注卡片 (终极防套娃修复版)</h3>
+
+    <select id="themeSelect" onchange="updateAllCardsTheme()" style="width:100%; padding:10px; margin-bottom:10px; background:rgba(0,0,0,0.2); color:white; border-radius:8px; border:1px solid rgba(255,255,255,0.2);">
+        <option value="modern">✨ 现代简约 (Modern)</option>
+        <option value="academia">📜 深夜学院 (Academia)</option>
+        <option value="botanical">🌿 植物图鉴 (Botanical)</option>
+        <option value="zen">🍵 枯山淡墨 (Zen)</option>
+        <option value="nordic">❄️ 北欧极简 (Nordic)</option>
+        <option value="royal">👑 宫廷典雅 (Royal)</option>
+        <option value="coffee">☕ 咖啡手账 (Coffee)</option>
+        <option value="swiss">📐 包豪斯红 (Swiss)</option>
+        <option value="dream">🦄 幻梦云端 (Dream)</option>
+        <option value="industrial">🏗️ 工业废墟 (Industrial)</option>
+    </select>
+    
+    
+    <div id="syncStatus" style="margin: 10px 0; padding: 12px; background: rgba(255, 235, 59, 0.1); border: 1px solid rgba(255, 235, 59, 0.3); border-radius: 8px; color: #ffeb3b; font-size: 13px; display: none; text-align: center; line-height: 1.5;"></div>
+    
+    <div class="btn-group">
+        
+        <button onclick="forceSync()" style="background: #607d8b;">🔄 强制同步云端</button>
+        <button id="abortBtn" onclick="abortGeneration()" style="background: #dc3545; display: none;">强制停止生成</button>
+        <button id="downloadBtn" onclick="downloadAllImages()">打包下载所有图片</button>
+        <button id="downloadDataBtn" onclick="downloadAllData()">下载轻量数据(JSONL)</button>
+    </div>
+</div>
+
+<div id="categoryTabs" class="category-tabs"></div>
+<div id="resultsGrid" class="results-grid"></div>
+
+<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+    <span class="lightbox-close">&times;</span>
+
+    <div id="lightboxInner" class="lightbox-inner" onclick="event.stopPropagation()"></div>
+    <div id="lightboxCounter" class="lightbox-counter"></div>
+
+</div>
+<div id="stagingArea"></div>
+
+<script>
+function toggleFullScreen() {
+    const doc = document;
+    const de = doc.documentElement;
+    // 检查多种 API 变体（兼容 iOS Chrome/Safari）
+    const isFull = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement;
+
+    if (!isFull) {
+        const req = de.requestFullscreen || de.webkitRequestFullscreen || de.mozRequestFullScreen || de.msRequestFullscreen;
+        if (req) {
+            req.call(de).catch(err => {
+                // 如果原生API失败（如iPhone Chrome不支持），则切换伪全屏类
+                doc.body.classList.toggle('is-pseudo-fullscreen');
+            });
+        } else {
+            // iPhone iOS 完全不支持 Fullscreen API 的退路方案
+            doc.body.classList.toggle('is-pseudo-fullscreen');
+            if (doc.body.classList.contains('is-pseudo-fullscreen')) {
+                window.scrollTo(0, 1);
+            }
+        }
+    } else {
+        const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
+        if (exit) exit.call(doc);
+        doc.body.classList.remove('is-pseudo-fullscreen');
+    }
+}
+
+let generatedImagesData = [];
+let rawResultsData = [];
+window.onload = initApp;
+let generatedDOMs = [];
+let currentGalleryIndex = 0;
+let allImportedData = [];
+let currentCategory = 'All';
+let touchStartX = 0;
+let isAborted = false;
+let currentRenderId = 0;
+
+function speakTTS(text, event) {
+    if(event) event.stopPropagation();
+    if(!text) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US';
+    window.speechSynthesis.speak(u);
+}
+
+const HighlighterColors = [
+    '#a1f2c2', '#d4b8ff', '#fcf3a2', '#ffb3ba', '#bae1ff', 
+    '#ffdfba', '#fcc8e8', '#e2f0cb', '#dec3c3', '#cbaacb'
+];
+
+
+
+async function startBatchGeneration() {
+    isAborted = false;
+    currentRenderId++;
+    document.getElementById('abortBtn').style.display = 'block';
+    const rawTopic = document.getElementById('topicInput').value;
+    const generateBtn = document.getElementById('generateBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const resultsGrid = document.getElementById('resultsGrid');
+    const stagingArea = document.getElementById('stagingArea');
+
+    if(!rawTopic) return alert("请输入内容！");
+    
+    const topics = rawTopic.split(/;|；|\n/).map(t => t.trim()).filter(t => t);
+    if(topics.length === 0) return alert("请输入至少一个关键词！");
+
+    generateBtn.disabled = true;
+    generateBtn.innerText = 'AI与排版引擎正在运算...';
+    downloadBtn.style.display = 'none';
+    document.getElementById('downloadDataBtn').style.display = 'none';
+    resultsGrid.innerHTML = ''; 
+    stagingArea.innerHTML = '';
+    generatedImagesData = new Array(topics.length).fill(null);
+    generatedDOMs = new Array(topics.length).fill(null);
+
+    topics.forEach((topic, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'image-wrapper';
+        wrapper.id = `wrapper-${index}`;
+        wrapper.innerHTML = `<div class="status-text">正在构思<br><b>${topic}</b><br>自适应排版中...</div>`;
+        resultsGrid.appendChild(wrapper);
+    });
+
+    // 离线模式：直接尝试解析输入内容
+    try {
+        const data = JSON.parse(rawTopic);
+        allImportedData = [data];
+        await renderCategory('All');
+    } catch (e) {
+        alert("无法识别输入格式，请输入有效的 JSON 对象。");
+    }
+
+    generateBtn.disabled = false;
+    generateBtn.innerText = '生成精美卡片';
+    document.getElementById('abortBtn').style.display = 'none';
+    if (generatedImagesData.some(item => item !== null)) {
+        downloadBtn.style.display = 'block';
+        document.getElementById('downloadDataBtn').style.display = 'block';
+    }
+}
+
+function abortGeneration() {
+    if(confirm("确定要强制停止生成吗？已完成的卡片将保留。")) {
+        isAborted = true;
+        document.getElementById('generateBtn').disabled = false;
+        document.getElementById('generateBtn').innerText = '生成精美卡片';
+        document.getElementById('abortBtn').style.display = 'none';
+        if (generatedImagesData.some(item => item !== null)) {
+            document.getElementById('downloadBtn').style.display = 'block';
+            document.getElementById('downloadDataBtn').style.display = 'block';
+        }
+    }
+}
+
+
+
+function createBaseCardDOM(data) {
+    const card = document.createElement('div');
+    const theme = document.getElementById('themeSelect').value;
+    card.className = `card-container theme-${theme}`;
+
+    const topSec = document.createElement('div');
+    topSec.className = 'top-section';
+
+    // [核心大修]：单次扫描正则替换引擎
+    // 1. 保留原始索引并按长度降序排序（防止"train"优先匹配导致"training"被截断）
+    const sortedWords = data.words.map((w, index) => ({...w, originalIndex: index}))
+                                  .sort((a, b) => b.word.length - a.word.length);
+    
+    // 2. 将10个单词拼接成一个巨大的正在表达式: \b(word1|word2|word3)\b
+    const escapedWords = sortedWords.map(w => w.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const combinedRegex = new RegExp(`\\b(${escapedWords.join('|')})\\b`, 'gi');
+
+    // 3. 将英文段落按句子切分，外层包裹发音 span，内部进行单词高亮！
+    const currentHighlightedEn = data.paragraph_en.replace(/[^.?!]+[.?!]*/g, (sentence) => {
+        const highlightedSentence = sentence.replace(combinedRegex, (match) => {
+            const lowerMatch = match.toLowerCase();
+            const foundWord = sortedWords.find(w => lowerMatch === w.word.toLowerCase());
+            if (foundWord) {
+                const color = HighlighterColors[foundWord.originalIndex % HighlighterColors.length];
+                return `<mark class="hl" style="background-color: ${color};">${match}</mark>`;
+            }
+            return match;
+        });
+        const cleanText = sentence.replace(/'/g, "\\'").replace(/"/g, "&quot;").trim();
+        return `<span class="tts-sentence" onclick="speakTTS('${cleanText}', event)" style="cursor:pointer; border-radius:4px; display:inline; transition: background 0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'">${highlightedSentence}</span>`;
+    });
+
+    topSec.innerHTML = `
+        <div class="en-paragraph">${currentHighlightedEn}</div>
+        <div class="zh-translation">翻译：${data.paragraph_zh}</div>
+    `;
+    card.appendChild(topSec);
+
+    const midSec = document.createElement('div');
+    midSec.className = 'middle-tree';
+    card.appendChild(midSec);
+
+    const botSec = document.createElement('div');
+    botSec.className = 'bottom-section';
+    let defHTML = '';
+    data.words.forEach((item, i) => {
+        const color = HighlighterColors[i % HighlighterColors.length];
+        const cleanWord = item.word.replace(/'/g, "\\'");
+        defHTML += `<div class="def-item" style="flex-direction: column; align-items: flex-start; cursor:pointer; transition: transform 0.2s;" onclick="speakTTS('${cleanWord}', event)" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+            <div style="margin-bottom: 2px;"><mark class="hl" style="background-color: ${color}; font-weight: 600; margin-right: 6px;">${item.word}</mark><span style="font-size: 12px; color: #888;">${item.phonetic || ''}</span></div>
+            <div style="color: #444;">${item.definition}</div>
+        </div>`;
+    });
+    botSec.innerHTML = defHTML;
+    card.appendChild(botSec);
+
+    return card;
+}
+
+async function applyAutoFitLogic(cardDOM) {
+    // 提高初始字号以填充上方空间，缩小中下间距
+    let fontEn = 25; 
+    let fontZh = 20;
+    let fontDef = 16;
+    let lhEn = 2.2; 
+
+    const enPara = cardDOM.querySelector('.en-paragraph');
+    const zhPara = cardDOM.querySelector('.zh-translation');
+    const botSec = cardDOM.querySelector('.bottom-section');
+
+    // [注释：卡片上中下的上部分中英文段翻译]
+    // 初始应用较大字号
+    enPara.style.fontSize = `${fontEn}px`;
+    enPara.style.lineHeight = `${lhEn}`;
+    zhPara.style.fontSize = `${fontZh}px`;
+    botSec.querySelectorAll('.def-item').forEach(el => el.style.fontSize = `${fontDef}px`);
+
+    // 动态检测：如果总高度超过卡片高度，则逐步缩小字号
+    while (cardDOM.scrollHeight > 1070 && fontEn > 14) {
+        fontEn -= 0.4;
+        fontZh -= 0.3;
+        fontDef -= 0.2;
+        
+        if (lhEn > 1.6) lhEn -= 0.03;
+
+        enPara.style.fontSize = `${fontEn}px`;
+        enPara.style.lineHeight = `${lhEn}`;
+        zhPara.style.fontSize = `${fontZh}px`;
+        
+        const defItems = botSec.querySelectorAll('.def-item');
+        defItems.forEach(el => {
+            el.style.fontSize = `${Math.max(12, fontDef)}px`;
+        });
+    }
+}
+
+function drawDynamicTree(cardDOM, data) {
+    const midSec = cardDOM.querySelector('.middle-tree');
+    const midWidth = midSec.offsetWidth;
+    const midHeight = midSec.offsetHeight;
+    
+    const centerX = midWidth / 2;
+    const centerY = midHeight / 2;
+    const radius = Math.min(midWidth, midHeight) / 2 - 45;
+
+    const center = document.createElement('div');
+    center.className = 'center-word';
+    center.innerText = `${data.pos || ''}. ${data.theme}`;
+    center.style.left = `${centerX}px`;
+    center.style.top = `${centerY}px`;
+    center.style.transform = `translate(-50%, -50%)`;
+    midSec.appendChild(center);
+
+    data.words.forEach((item, i) => {
+        const color = HighlighterColors[i % HighlighterColors.length];
+        const angleDeg = (i * (360 / data.words.length)) - 90;
+        const angleRad = angleDeg * (Math.PI / 180);
+        
+        const x = centerX + Math.cos(angleRad) * radius;
+        const y = centerY + Math.sin(angleRad) * radius;
+
+        const el = document.createElement('div');
+        el.className = 'word-item';
+        el.style.backgroundColor = color; 
+        el.style.cursor = 'pointer';
+        el.setAttribute('onclick', `speakTTS('${item.word.replace(/'/g, "\\'")}', event)`);
+        el.innerText = item.word;
+        
+        const cos = Math.cos(angleRad);
+        const sin = Math.sin(angleRad);
+        
+        let tx = -50;
+        if (cos > 0.3) tx = 0; else if (cos < -0.3) tx = -100;
+        let ty = -50;
+        if (sin > 0.7) ty = 0; else if (sin < -0.7) ty = -100;
+
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+        el.style.transform = `translate(${tx}%, ${ty}%)`;
+        midSec.appendChild(el);
+
+        const line = document.createElement('div');
+        line.className = 'line';
+        line.style.backgroundColor = color; 
+        line.style.left = `${centerX}px`;
+        line.style.top = `${centerY}px`;
+        const lineLength = radius - 35;
+        line.style.width = `${lineLength}px`;
+        line.style.transform = `rotate(${angleDeg}deg) translate(35px, 0)`; 
+        midSec.appendChild(line);
+    });
+}
+
+async function initApp() {
+    const syncStatus = document.getElementById('syncStatus');
+    try {
+        allImportedData = await localforage.getItem('word_cards_db');
+        
+        if (!allImportedData || allImportedData.length === 0) {
+            syncStatus.style.display = 'block';
+            syncStatus.innerHTML = '✨ 首次访问：正在从 GitHub 同步 20,000 条核心数据...<br><span style="font-size:11px; opacity:0.8;">(约 27MB，仅首次加载需要消耗流量)</span>';
+            
+            const files = ['./data/part1.jsonl', './data/part2.jsonl'];
+            let combinedData = [];
+            
+            for (const file of files) {
+                const response = await fetch(file);
+                const text = await response.text();
+                const lines = text.split('\n').filter(line => line.trim());
+                
+                lines.forEach(line => {
+                    try {
+                        const parsed = JSON.parse(line);
+                        combinedData.push({
+                            c: parsed.c || '未分类',
+                            theme: parsed.t,
+                            pos: parsed.pos || '',
+                            ui: parsed.ui || 'modern',
+                            words: parsed.w.map(word => ({
+                                word: word.n, phonetic: word.p, definition: word.d
+                            })),
+                            paragraph_en: parsed.en,
+                            paragraph_zh: parsed.zh
+                        });
+                    } catch (err) {}
+                });
+            }
+            
+            allImportedData = combinedData;
+            await localforage.setItem('word_cards_db', allImportedData);
+            syncStatus.innerText = '✅ 同步完成！数据已持久化到本地离线空间。';
+            setTimeout(() => syncStatus.style.display = 'none', 3000);
+        }
+
+        const categories = new Set(allImportedData.map(d => d.c));
+        const categoryList = Array.from(categories).sort();
+        renderCategoryTabs(categoryList);
+        if (categoryList.length > 0) await renderCategory(categoryList[0]);
+
+    } catch (error) {
+        console.error('Initialization error:', error);
+        syncStatus.style.display = 'block';
+        syncStatus.innerText = '❌ 数据同步失败，请检查网络或路径配置。';
+    }
+}
+
+async function forceSync() {
+    if(confirm("确定要强制重新同步云端数据吗？\n这将清空本地数据库并刷新页面。")) {
+        await localforage.removeItem('word_cards_db');
+        location.reload();
+    }
+}
+
+function renderCategoryTabs(categories) {
+    const tabsContainer = document.getElementById('categoryTabs');
+    tabsContainer.innerHTML = '';
+    
+    categories.forEach((cat, index) => {
+        const tab = document.createElement('div');
+        // 默认激活第一个分类
+        tab.className = index === 0 ? 'category-tab active' : 'category-tab';
+        tab.innerText = cat;
+        tab.onclick = () => { setActiveTab(tab); renderCategory(cat); };
+        tabsContainer.appendChild(tab);
+    });
+}
+
+function setActiveTab(clickedTab) {
+    document.querySelectorAll('.category-tab').forEach(tab => tab.classList.remove('active'));
+    clickedTab.classList.add('active');
+}
+
+async function renderCategory(category) {
+    const localRenderId = ++currentRenderId;
+    currentCategory = category;
+    const resultsGrid = document.getElementById('resultsGrid');
+    const stagingArea = document.getElementById('stagingArea');
+    resultsGrid.innerHTML = '';
+    stagingArea.innerHTML = '';
+    
+    const filteredData = category === 'All' ? allImportedData : allImportedData.filter(d => d.c === category);
+    rawResultsData = filteredData;
+    generatedImagesData = new Array(filteredData.length).fill(null);
+    generatedDOMs = new Array(filteredData.length).fill(null);
+
+    filteredData.forEach((data, i) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'image-wrapper';
+        wrapper.style.aspectRatio = 'auto';
+        wrapper.style.padding = '20px';
+        wrapper.style.cursor = 'pointer';
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.justifyContent = 'center';
+        wrapper.style.background = 'rgba(255,255,255,0.1)';
+        wrapper.style.color = '#fff';
+        wrapper.style.fontWeight = 'bold';
+        wrapper.innerText = data.theme;
+        wrapper.onclick = async () => {
+            if (!generatedDOMs[i]) {
+                const originalTheme = document.getElementById('themeSelect').value;
+                if (data.ui) document.getElementById('themeSelect').value = data.ui;
+                const cardDOM = createBaseCardDOM(data);
+                stagingArea.appendChild(cardDOM);
+                await applyAutoFitLogic(cardDOM);
+                drawDynamicTree(cardDOM, data);
+                generatedDOMs[i] = cardDOM.cloneNode(true);
+                const canvas = await html2canvas(cardDOM, { scale: 2, backgroundColor: null });
+                generatedImagesData[i] = { theme: data.theme, dataUrl: canvas.toDataURL('image/png') };
+                cardDOM.remove();
+                document.getElementById('themeSelect').value = originalTheme;
+            }
+            openLightbox(i);
+        };
+        resultsGrid.appendChild(wrapper);
+    });
+    
+    if (generatedImagesData.some(item => item !== null)) {
+        document.getElementById('downloadBtn').style.display = 'block';
+        document.getElementById('downloadDataBtn').style.display = 'block';
+    }
+}
+
+async function updateAllCardsTheme() {
+    const theme = document.getElementById('themeSelect').value;
+    // 遍历所有数据，清空已有的 DOM 缓存和图片缓存，强制在下次访问时重绘
+    for (let i = 0; i < rawResultsData.length; i++) {
+        if (!rawResultsData[i]) continue;
+        rawResultsData[i].ui = theme;
+        
+        // 重置缓存以便下次访问时触发重新渲染
+        generatedDOMs[i] = null;
+        generatedImagesData[i] = null;
+    }
+    
+    // 如果相册开着，强制重新生成当前索引卡片
+    if (document.getElementById('lightbox').style.display === 'flex') {
+        await triggerLazyLoad(currentGalleryIndex);
+    }
+}
+
+// --- 相册功能函数 ---
+function openLightbox(index) {
+    const validData = generatedImagesData.filter(img => img !== null);
+    if (validData.length === 0) return;
+    
+    currentGalleryIndex = index;
+    updateLightboxContent();
+    document.getElementById('lightbox').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function updateLightboxContent() {
+    const domNode = generatedDOMs[currentGalleryIndex];
+    const inner = document.getElementById('lightboxInner');
+    inner.innerHTML = '';
+
+    if (!domNode) {
+        const loading = document.createElement('div');
+        loading.style.color = 'white';
+        loading.style.textAlign = 'center';
+        const rawData = rawResultsData[currentGalleryIndex];
+        loading.innerHTML = `<h3>正在生成中...</h3><p style="font-size: 24px;">${rawData.theme}</p><p>${rawData.paragraph_zh ? rawData.paragraph_zh.substring(0, 30) + '...' : ''}</p>`;
+        inner.appendChild(loading);
+        return;
+    }
+    
+    const displayNode = domNode.cloneNode(true);
+
+    // 增加切换控制区
+    const navPrev = document.createElement('div');
+    navPrev.innerHTML = '❮';
+    navPrev.style.cssText = 'position:absolute; left:20px; color:white; font-size:40px; cursor:pointer; z-index:2200; user-select:none;';
+    navPrev.onclick = (e) => { e.stopPropagation(); prevImage(); };
+    
+    const navNext = document.createElement('div');
+    navNext.innerHTML = '❯';
+    navNext.style.cssText = 'position:absolute; right:20px; color:white; font-size:40px; cursor:pointer; z-index:2200; user-select:none;';
+    navNext.onclick = (e) => { e.stopPropagation(); nextImage(); };
+    
+    inner.appendChild(navPrev);
+    inner.appendChild(navNext);
+    
+    const scaleH = window.innerHeight / 1083;
+    const scaleW = window.innerWidth / 500;
+    const finalScale = Math.min(scaleW, scaleH);
+
+    displayNode.style.transform = `scale(${finalScale})`;
+    displayNode.style.transformOrigin = 'center center';
+    displayNode.style.margin = '0';
+    displayNode.style.flexShrink = '0';
+    
+    inner.appendChild(displayNode);
+    document.getElementById('lightboxCounter').innerText = `${currentGalleryIndex + 1} / ${generatedImagesData.length}`;
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+function nextImage(e) {
+    if (e) e.stopPropagation();
+    currentGalleryIndex = (currentGalleryIndex + 1) % generatedImagesData.length;
+    triggerLazyLoad(currentGalleryIndex);
+    updateLightboxContent();
+}
+
+function prevImage(e) {
+    if (e) e.stopPropagation();
+    currentGalleryIndex = (currentGalleryIndex - 1 + generatedImagesData.length) % generatedImagesData.length;
+    triggerLazyLoad(currentGalleryIndex);
+    updateLightboxContent();
+}
+
+async function triggerLazyLoad(index) {
+    if (!generatedDOMs[index]) {
+        const data = rawResultsData[index];
+        const cardDOM = createBaseCardDOM(data);
+        document.getElementById('stagingArea').appendChild(cardDOM);
+        await applyAutoFitLogic(cardDOM);
+        drawDynamicTree(cardDOM, data);
+        generatedDOMs[index] = cardDOM.cloneNode(true);
+        const canvas = await html2canvas(cardDOM, { scale: 2, backgroundColor: null });
+        generatedImagesData[index] = { theme: data.theme, dataUrl: canvas.toDataURL('image/png') };
+        cardDOM.remove();
+        updateLightboxContent();
+    }
+}
+
+// 键盘与滑动监听
+window.addEventListener('keydown', (e) => {
+    if (document.getElementById('lightbox').style.display === 'flex') {
+        if (e.key === 'ArrowRight') nextImage();
+        if (e.key === 'ArrowLeft') prevImage();
+        if (e.key === 'Escape') closeLightbox();
+    }
+});
+
+const lb = document.getElementById('lightbox');
+lb.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, false);
+lb.addEventListener('touchend', e => {
+    let touchEndX = e.changedTouches[0].screenX;
+    if (touchStartX - touchEndX > 50) nextImage();
+    if (touchEndX - touchStartX > 50) prevImage();
+}, false);
+
+function downloadAllData() {
+    const validData = rawResultsData.filter(item => item !== null);
+    if(validData.length === 0) return;
+
+    const uiTheme = document.getElementById('themeSelect').value;
+    
+    let jsonlContent = "";
+    validData.forEach(data => {
+        const compressed = {
+            t: data.theme,
+            pos: data.pos,
+            ui: uiTheme,
+            w: data.words.map(w => ({
+                n: w.word,
+                p: w.phonetic,
+                d: w.definition
+            })),
+            en: data.paragraph_en,
+            zh: data.paragraph_zh
+        };
+        jsonlContent += JSON.stringify(compressed) + "\n";
+    });
+
+    const blob = new Blob([jsonlContent], { type: "application/octet-stream" });
+    saveAs(blob, "单词卡片纯文本数据.jsonl");
+}
+
+async function downloadAllImages() {
+    const validImages = generatedImagesData.filter(item => item !== null);
+    if(validImages.length === 0) return;
+
+    if(validImages.length === 1) {
+        const link = document.createElement('a');
+        link.download = `批注单词卡-${validImages[0].theme}.png`;
+        link.href = validImages[0].dataUrl;
+        link.click();
+    } else {
+        const zip = new JSZip();
+        validImages.forEach(img => {
+            const base64Data = img.dataUrl.replace(/^data:image\/(png|jpg);base64,/, "");
+            zip.file(`批注单词卡-${img.theme}.png`, base64Data, {base64: true});
+        });
+        try {
+            const content = await zip.generateAsync({type:"blob"});
+            saveAs(content, "批注单词卡批量下载.zip");
+        } catch(e) {
+            console.error("ZIP打包失败", e);
+            alert("文件打包失败，请检查浏览器权限。");
+        }
+    }
+}
+</script>
+</body>
+</html>
