@@ -236,11 +236,11 @@
 
 <div class="top-bar">
     <button class="icon-btn" onclick="toggleFullScreen()">⛶ 全屏切换</button>
-    <!-- 此处可预留更多功能按钮 -->
+    <button class="icon-btn" onclick="forceSync()">🔄 强制同步云端</button>
 </div>
 
 <div class="config-panel">
-    <h3>📖单词家族批注卡片 (终极防套娃修复版)</h3>
+    <h3>🧙‍♀️Catchase单词家族点读卡</h3>
 
     <select id="themeSelect" onchange="updateAllCardsTheme()" style="width:100%; padding:10px; margin-bottom:10px; background:rgba(0,0,0,0.2); color:white; border-radius:8px; border:1px solid rgba(255,255,255,0.2);">
         <option value="modern">✨ 现代简约 (Modern)</option>
@@ -259,8 +259,6 @@
     <div id="syncStatus" style="margin: 10px 0; padding: 12px; background: rgba(255, 235, 59, 0.1); border: 1px solid rgba(255, 235, 59, 0.3); border-radius: 8px; color: #ffeb3b; font-size: 13px; display: none; text-align: center; line-height: 1.5;"></div>
     
     <div class="btn-group">
-        
-        <button onclick="forceSync()" style="background: #607d8b;">🔄 强制同步云端</button>
         <button id="abortBtn" onclick="abortGeneration()" style="background: #dc3545; display: none;">强制停止生成</button>
         <button id="downloadBtn" onclick="downloadAllImages()">打包下载所有图片</button>
         <button id="downloadDataBtn" onclick="downloadAllData()">下载轻量数据(JSONL)</button>
