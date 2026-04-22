@@ -16,8 +16,8 @@
 
         body {
             font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #2b324c 0%, #16213e 50%, #2b324c 100%);
-            color: #e0e0e0;
+            background: #000000;
+            color: #00ff41;
             margin: 0;
             display: flex;
             flex-direction: column;
@@ -29,12 +29,11 @@
 
 
         .top-bar { width: 100%; max-width: 600px; display: flex; justify-content: flex-start; gap: 10px; margin-bottom: 12px; } .icon-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: white; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; backdrop-filter: blur(5px); transition: all 0.2s; display: flex; align-items: center; gap: 5px; } .icon-btn:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.4); } .config-panel {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
+            background: #000000;
             padding: 20px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            border-radius: 12px;
+            border: 1px solid #00ff41;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
             margin-bottom: 20px;
             width: 100%;
             max-width: 600px;
@@ -48,10 +47,10 @@
             width: 100%;
             padding: 12px;
             margin: 8px 0;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(0, 0, 0, 0.2);
-            color: white;
-            border-radius: 8px;
+            border: 1px solid #00ff41;
+            background: #000;
+            color: #00ff41;
+            border-radius: 4px;
             box-sizing: border-box;
             font-size: 14px;
             font-family: inherit;
@@ -59,17 +58,18 @@
         
         .btn-group { display: flex; gap: 10px; margin-top: 10px; }
         button {
-            flex: 1; padding: 14px; background: #4e73df; color: white;
-            border: none; border-radius: 8px; font-size: 16px; font-weight: bold;
-            cursor: pointer; transition: background 0.3s;
+            flex: 1; padding: 12px; background: #000; color: #00ff41;
+            border: 1px solid #00ff41; border-radius: 4px; font-size: 15px; font-weight: bold;
+            cursor: pointer; transition: all 0.2s;
         }
+        button:hover { background: #003b00; color: #fff; }
         button:hover { background: #375abd; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         #downloadBtn { background: #28a745; display: none; }
         #downloadDataBtn { background: #ff9800; display: none; }
 
         .results-grid {
-            display: flex; flex-wrap: wrap; gap: 8px; width: 100%; max-width: 1200px;
+            display: flex; flex-wrap: wrap; gap: 6px; width: 100%; max-width: 1200px;
             justify-content: center; padding-top: 15px;
         }
         @media (max-width: 768px) { .results-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
@@ -212,17 +212,13 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         .category-tab {
-            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white; padding: 6px 14px; border-radius: 20px; cursor: pointer;
-            font-size: 13px; transition: all 0.2s; white-space: nowrap; text-align: center;
-        }
-        .category-tab {
-            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer;
-            font-size: 14px; transition: all 0.2s;
+            background: #000; border: 1px solid #00ff41;
+            color: #00ff41; padding: 4px 10px; border-radius: 4px; cursor: pointer;
+            font-size: 12px; transition: all 0.2s; white-space: nowrap; text-align: center;
+            margin: 2px;
         }
         .category-tab.active {
-            background: #4e73df; border-color: #4e73df; font-weight: bold;
+            background: #00ff41; border-color: #00ff41; color: #000; font-weight: bold;
         }
         /* iOS/iPhone 兼容模拟全屏样式 */
         body.is-pseudo-fullscreen {
