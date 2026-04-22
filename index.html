@@ -209,6 +209,7 @@
             z-index: 2100; cursor: pointer; backdrop-filter: blur(5px);
         }
         .lightbox-counter { position: absolute; top: 8px; left: 8px; color: white; font-size: 12px; background: rgba(0,255,65,0.2); border: 1px solid #00ff41; padding: 4px 12px; border-radius: 20px; z-index: 2100; cursor: pointer; backdrop-filter: blur(5px); }
+        .lightbox-fs-btn { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); color: white; font-size: 12px; background: rgba(0, 255, 65, 0.2); border: 1px solid #00ff41; padding: 4px 12px; border-radius: 20px; z-index: 2100; cursor: pointer; backdrop-filter: blur(5px); }
         .lightbox-menu { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.98); border: 1px solid #00ff41; border-radius: 8px; max-height: 85vh; width: 96vw; max-width: 1000px; overflow-y: auto; display: none; z-index: 2300; padding: 12px; box-shadow: 0 0 30px rgba(0,255,65,0.5); grid-template-columns: repeat(3, 1fr); gap: 6px; touch-action: auto; }
         .menu-item { padding: 10px 4px; color: #00ff41; font-size: 11px; cursor: pointer; border: 1px solid rgba(0, 255, 65, 0.2); border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
         .menu-item:hover { background: rgba(0, 255, 65, 0.1); }
@@ -267,6 +268,7 @@
 
 <div id="lightbox" class="lightbox" onclick="closeLightbox()">
     <span class="lightbox-close">✕ 关闭</span>
+    <span class="lightbox-fs-btn" onclick="event.stopPropagation(); toggleFullScreen()">⛶ 全屏切换</span>
 
     <div id="lightboxInner" class="lightbox-inner" onclick="event.stopPropagation()"></div>
     <div id="lightboxCounter" class="lightbox-counter"></div>
@@ -278,27 +280,36 @@
 function toggleFullScreen() {
     const doc = document;
     const de = doc.documentElement;
-    // 检查多种 API 变体（兼容 iOS Chrome/Safari）
     const isFull = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement;
+
+    const syncUI = () => {
+        // 延迟执行以等待浏览器完成布局重绘和窗口尺寸更新
+        setTimeout(() => {
+            if (document.getElementById('lightbox').style.display === 'flex') {
+                updateLightboxContent();
+            }
+        }, 150);
+    };
 
     if (!isFull) {
         const req = de.requestFullscreen || de.webkitRequestFullscreen || de.mozRequestFullScreen || de.msRequestFullscreen;
         if (req) {
-            req.call(de).catch(err => {
-                // 如果原生API失败（如iPhone Chrome不支持），则切换伪全屏类
+            req.call(de).then(syncUI).catch(err => {
                 doc.body.classList.toggle('is-pseudo-fullscreen');
+                syncUI();
             });
         } else {
-            // iPhone iOS 完全不支持 Fullscreen API 的退路方案
             doc.body.classList.toggle('is-pseudo-fullscreen');
             if (doc.body.classList.contains('is-pseudo-fullscreen')) {
                 window.scrollTo(0, 1);
             }
+            syncUI();
         }
     } else {
         const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
-        if (exit) exit.call(doc);
+        if (exit) exit.call(doc).then(syncUI).catch(() => syncUI());
         doc.body.classList.remove('is-pseudo-fullscreen');
+        syncUI();
     }
 }
 
