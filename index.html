@@ -204,10 +204,15 @@
             background: #000;
         }
         .lightbox-close {
-            position: absolute; top: 10px; right: 10px; color: white;
-            font-size: 35px; cursor: pointer; z-index: 2100; width: 40px; height: 40px; text-align: center; line-height: 40px;
+            position: absolute; top: 8px; right: 8px; color: white;
+            font-size: 12px; background: rgba(0, 255, 65, 0.2); border: 1px solid #00ff41; padding: 4px 12px; border-radius: 20px;
+            z-index: 2100; cursor: pointer; backdrop-filter: blur(5px);
         }
-        .lightbox-counter { position: absolute; top: 20px; left: 20px; color: white; font-size: 16px; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; z-index: 2100; }
+        .lightbox-counter { position: absolute; top: 8px; left: 8px; color: white; font-size: 12px; background: rgba(0,255,65,0.2); border: 1px solid #00ff41; padding: 4px 12px; border-radius: 20px; z-index: 2100; cursor: pointer; backdrop-filter: blur(5px); }
+        .lightbox-menu { position: absolute; top: 45px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.98); border: 1px solid #00ff41; border-radius: 8px; max-height: 85vh; width: 96vw; max-width: 1000px; overflow-y: auto; display: none; z-index: 2300; padding: 12px; box-shadow: 0 0 30px rgba(0,255,65,0.5); grid-template-columns: repeat(3, 1fr); gap: 6px; touch-action: auto; }
+        .menu-item { padding: 10px 4px; color: #00ff41; font-size: 11px; cursor: pointer; border: 1px solid rgba(0, 255, 65, 0.2); border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+        .menu-item:hover { background: rgba(0, 255, 65, 0.1); }
+        .menu-item.active { background: #00ff41; color: #000; font-weight: bold; }
 
         /* 分类导航栏样式 */
         .category-tabs {
@@ -261,11 +266,11 @@
 <div id="resultsGrid" class="results-grid"></div>
 
 <div id="lightbox" class="lightbox" onclick="closeLightbox()">
-    <span class="lightbox-close">&times;</span>
+    <span class="lightbox-close">✕ 关闭</span>
 
     <div id="lightboxInner" class="lightbox-inner" onclick="event.stopPropagation()"></div>
     <div id="lightboxCounter" class="lightbox-counter"></div>
-
+    <div id="lightboxMenu" class="lightbox-menu"></div>
 </div>
 <div id="stagingArea"></div>
 
@@ -716,11 +721,43 @@ function updateLightboxContent() {
     displayNode.style.flexShrink = '0';
     
     inner.appendChild(displayNode);
-    document.getElementById('lightboxCounter').innerText = `${currentGalleryIndex + 1} / ${generatedImagesData.length}`;
+    const counter = document.getElementById('lightboxCounter');
+    counter.innerText = `${currentGalleryIndex + 1} / ${generatedImagesData.length} ☰`;
+    counter.onclick = (e) => { e.stopPropagation(); toggleLightboxMenu(); };
+}
+
+function toggleLightboxMenu() {
+    const menu = document.getElementById('lightboxMenu');
+    if (menu.style.display === 'grid') {
+        menu.style.display = 'none';
+    } else {
+        menu.innerHTML = '';
+        // 阻止触摸事件向上传递，防止目录滑动时触发相册翻页
+        menu.ontouchstart = e => e.stopPropagation();
+        menu.ontouchmove = e => e.stopPropagation();
+        menu.ontouchend = e => e.stopPropagation();
+        menu.onmousedown = e => e.stopPropagation();
+
+        rawResultsData.forEach((data, idx) => {
+            const item = document.createElement('div');
+            item.className = `menu-item ${idx === currentGalleryIndex ? 'active' : ''}`;
+            item.innerText = `${idx + 1}. ${data.theme}`;
+            item.onclick = (e) => {
+                e.stopPropagation();
+                currentGalleryIndex = idx;
+                triggerLazyLoad(idx);
+                updateLightboxContent();
+                menu.style.display = 'none';
+            };
+            menu.appendChild(item);
+        });
+        menu.style.display = 'grid';
+    }
 }
 
 function closeLightbox() {
     document.getElementById('lightbox').style.display = 'none';
+    document.getElementById('lightboxMenu').style.display = 'none';
     document.body.style.overflow = 'auto';
 }
 
