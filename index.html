@@ -202,6 +202,8 @@
             justify-content: center; 
             align-items: center; 
             background: #000;
+            gap: 0;
+            overflow: hidden;
         }
         .lightbox-close {
             position: absolute; top: 8px; right: 8px; color: white;
@@ -316,8 +318,12 @@ function toggleFullScreen() {
 let generatedImagesData = [];
 let rawResultsData = [];
 window.onload = initApp;
+window.addEventListener('resize', () => {
+    if (document.getElementById('lightbox').style.display === 'flex') updateLightboxContent();
+});
 let generatedDOMs = [];
 let currentGalleryIndex = 0;
+let cardsPerView = 1;
 let allImportedData = [];
 let currentCategory = 'All';
 let touchStartX = 0;
@@ -682,58 +688,70 @@ async function updateAllCardsTheme() { /* 多主题选择器已移除 */ }
 
 // --- 相册功能函数 ---
 function openLightbox(index) {
-    const validData = generatedImagesData.filter(img => img !== null);
-    if (validData.length === 0) return;
-    
+    if (rawResultsData.length === 0) return;
+    // 第一视角优先：点击的卡片设为起始索引（最左侧）
     currentGalleryIndex = index;
-    updateLightboxContent();
     document.getElementById('lightbox').style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    updateLightboxContent();
 }
 
-function updateLightboxContent() {
-    const domNode = generatedDOMs[currentGalleryIndex];
+async function updateLightboxContent() {
     const inner = document.getElementById('lightboxInner');
-    inner.innerHTML = '';
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+    const winRatio = winW / winH;
 
-    if (!domNode) {
-        const loading = document.createElement('div');
-        loading.style.color = 'white';
-        loading.style.textAlign = 'center';
-        const rawData = rawResultsData[currentGalleryIndex];
-        loading.innerHTML = `<h3>正在生成中...</h3><p style="font-size: 24px;">${rawData.theme}</p><p>${rawData.paragraph_zh ? rawData.paragraph_zh.substring(0, 30) + '...' : ''}</p>`;
-        inner.appendChild(loading);
-        return;
+    // 自适应计算同屏卡片数 (卡片比例 500:1083 ≈ 0.46)
+    if (winRatio > 2.2) cardsPerView = 4;
+    else if (winRatio > 1.6) cardsPerView = 3;
+    else if (winRatio > 0.8) cardsPerView = 2;
+    else cardsPerView = 1;
+
+    const gap = 0;
+    const totalCardWidth = cardsPerView * 500;
+    const finalScale = Math.min(winW / totalCardWidth, winH / 1083);
+
+    // 批量触发当前组的懒加载
+    const indices = [];
+    for (let i = 0; i < cardsPerView; i++) {
+        indices.push((currentGalleryIndex + i) % rawResultsData.length);
     }
-    
-    const displayNode = domNode.cloneNode(true);
+    await triggerLazyLoadBatch(indices);
 
-    // 增加切换控制区
+    inner.innerHTML = '';
+    
+    // 渲染卡片组
+    indices.forEach(idx => {
+        const domNode = generatedDOMs[idx];
+        if (domNode) {
+            const displayNode = domNode.cloneNode(true);
+            displayNode.style.transform = `scale(${finalScale})`;
+            displayNode.style.transformOrigin = 'center center';
+            displayNode.style.flexShrink = '0';
+            displayNode.style.margin = '0';
+            inner.appendChild(displayNode);
+        }
+    });
+
+    // 导航箭头
     const navPrev = document.createElement('div');
     navPrev.innerHTML = '❮';
-    navPrev.style.cssText = 'position:absolute; left:20px; color:white; font-size:40px; cursor:pointer; z-index:2200; user-select:none;';
+    navPrev.style.cssText = 'position:absolute; left:20px; color:#00ff41; font-size:50px; cursor:pointer; z-index:2200; text-shadow:0 0 10px #000;';
     navPrev.onclick = (e) => { e.stopPropagation(); prevImage(); };
     
     const navNext = document.createElement('div');
     navNext.innerHTML = '❯';
-    navNext.style.cssText = 'position:absolute; right:20px; color:white; font-size:40px; cursor:pointer; z-index:2200; user-select:none;';
+    navNext.style.cssText = 'position:absolute; right:20px; color:#00ff41; font-size:50px; cursor:pointer; z-index:2200; text-shadow:0 0 10px #000;';
     navNext.onclick = (e) => { e.stopPropagation(); nextImage(); };
     
     inner.appendChild(navPrev);
     inner.appendChild(navNext);
-    
-    const scaleH = window.innerHeight / 1083;
-    const scaleW = window.innerWidth / 500;
-    const finalScale = Math.min(scaleW, scaleH);
 
-    displayNode.style.transform = `scale(${finalScale})`;
-    displayNode.style.transformOrigin = 'center center';
-    displayNode.style.margin = '0';
-    displayNode.style.flexShrink = '0';
-    
-    inner.appendChild(displayNode);
     const counter = document.getElementById('lightboxCounter');
-    counter.innerText = `${currentGalleryIndex + 1} / ${generatedImagesData.length} ☰`;
+    const startIdx = currentGalleryIndex + 1;
+    const endIdx = Math.min(currentGalleryIndex + cardsPerView, rawResultsData.length);
+    counter.innerText = (startIdx === endIdx ? startIdx : `${startIdx}-${endIdx}`) + ` / ${rawResultsData.length} ☰`;
     counter.onclick = (e) => { e.stopPropagation(); toggleLightboxMenu(); };
 }
 
@@ -774,20 +792,20 @@ function closeLightbox() {
 
 function nextImage(e) {
     if (e) e.stopPropagation();
-    currentGalleryIndex = (currentGalleryIndex + 1) % generatedImagesData.length;
-    triggerLazyLoad(currentGalleryIndex);
+    // 按组跳转
+    currentGalleryIndex = (currentGalleryIndex + cardsPerView) % rawResultsData.length;
     updateLightboxContent();
 }
 
 function prevImage(e) {
     if (e) e.stopPropagation();
-    currentGalleryIndex = (currentGalleryIndex - 1 + generatedImagesData.length) % generatedImagesData.length;
-    triggerLazyLoad(currentGalleryIndex);
+    // 按组往回跳，处理负数取余
+    currentGalleryIndex = (currentGalleryIndex - cardsPerView + rawResultsData.length) % rawResultsData.length;
     updateLightboxContent();
 }
 
 async function triggerLazyLoad(index) {
-    if (!generatedDOMs[index]) {
+    if (!generatedDOMs[index] && rawResultsData[index]) {
         const data = rawResultsData[index];
         const cardDOM = createBaseCardDOM(data);
         document.getElementById('stagingArea').appendChild(cardDOM);
@@ -797,8 +815,12 @@ async function triggerLazyLoad(index) {
         const canvas = await html2canvas(cardDOM, { scale: 2, backgroundColor: null });
         generatedImagesData[index] = { theme: data.theme, dataUrl: canvas.toDataURL('image/png') };
         cardDOM.remove();
-        updateLightboxContent();
     }
+}
+
+async function triggerLazyLoadBatch(indices) {
+    const tasks = indices.map(idx => triggerLazyLoad(idx));
+    await Promise.all(tasks);
 }
 
 // 键盘与滑动监听
