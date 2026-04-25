@@ -207,6 +207,8 @@
             background: #000;
             gap: 0;
             overflow: hidden;
+            /* 确保在PC端容器不限制子元素排列 */
+            flex-direction: row;
         }
         .lightbox-close {
             position: absolute; top: 8px; right: 8px; color: white;
@@ -733,16 +735,26 @@ async function updateLightboxContent() {
 
     inner.innerHTML = '';
     
-    // 渲染卡片组
+    // 渲染卡片组：通过包装层消除 transform:scale 留下的空白间隙
     indices.forEach(idx => {
         const domNode = generatedDOMs[idx];
         if (domNode) {
+            const wrapper = document.createElement('div');
+            wrapper.style.width = (500 * finalScale) + 'px';
+            wrapper.style.height = (1083 * finalScale) + 'px';
+            wrapper.style.display = 'flex';
+            wrapper.style.justifyContent = 'center';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.flexShrink = '0';
+
             const displayNode = domNode.cloneNode(true);
             displayNode.style.transform = `scale(${finalScale})`;
             displayNode.style.transformOrigin = 'center center';
             displayNode.style.flexShrink = '0';
             displayNode.style.margin = '0';
-            inner.appendChild(displayNode);
+            
+            wrapper.appendChild(displayNode);
+            inner.appendChild(wrapper);
         }
     });
 
