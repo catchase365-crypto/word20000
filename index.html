@@ -17,6 +17,12 @@
             --bg-grid: #f4f8ff;
         }
 
+        * {
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
         body {
             font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
             background: #000000;
@@ -27,7 +33,7 @@
             align-items: center;
             padding: 12px;
             min-height: 100vh;
-            box-sizing: border-box;
+            overflow-x: hidden;
         }
 
 
@@ -110,16 +116,17 @@
         .card-container {
             width: 500px; 
             height: 1083px; 
+            flex-shrink: 0;
             contain: content; 
-            transition: all 0.5s ease;
+            transition: opacity 0.3s ease;
             background-color: var(--card-bg, #f4f8ff);
             background-image: var(--bg-img);
             background-size: 40px 40px;
-            box-sizing: border-box;
             font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
             display: flex; flex-direction: column;
             padding: 10px 25px 20px 25px; color: #333;
             overflow: hidden; 
+            position: relative;
         }
 
         .header-box {
@@ -712,8 +719,9 @@ function openLightbox(index) {
 
 async function updateLightboxContent() {
     const inner = document.getElementById('lightboxInner');
-    const winW = window.innerWidth;
-    const winH = window.innerHeight;
+    // 使用 clientWidth/Height 排除滚动条干扰，确保 GitHub 与本地计算一致
+    const winW = document.documentElement.clientWidth;
+    const winH = document.documentElement.clientHeight;
     const winRatio = winW / winH;
 
     // 自适应计算同屏卡片数 (卡片比例 500:1083 ≈ 0.46)
@@ -724,7 +732,8 @@ async function updateLightboxContent() {
 
     const gap = 0;
     const totalCardWidth = cardsPerView * 500;
-    const finalScale = Math.min(winW / totalCardWidth, winH / 1083);
+    // 预留少量边距 (0.98) 防止跨平台渲染引擎产生的 1px 溢出导致错位
+    const finalScale = Math.min(winW / totalCardWidth, winH / 1083) * 0.98;
 
     // 批量触发当前组的懒加载
     const indices = [];
