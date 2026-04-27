@@ -113,6 +113,51 @@
         .theme-oled .def-item { background: rgba(0, 40, 0, 0.4); }
         .theme-oled .def-item div { color: #00ff41 !important; }
 
+        /* 墨水屏模式 (E-Ink) */
+        body.ink-mode {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        body.ink-mode .config-panel {
+            background: #ffffff;
+            border: 2px solid #000;
+            box-shadow: none;
+            color: #000;
+        }
+        body.ink-mode .config-panel h3, body.ink-mode .tips { color: #000; }
+        body.ink-mode button, body.ink-mode .icon-btn {
+            background: #fff !important;
+            color: #000 !important;
+            border: 2px solid #000 !important;
+        }
+        body.ink-mode input, body.ink-mode textarea {
+            background: #fff;
+            color: #000;
+            border: 2px solid #000;
+        }
+        body.ink-mode .category-tab {
+            background: #fff;
+            border: 2px solid #000;
+            color: #000;
+        }
+        body.ink-mode .category-tab.active {
+            background: #000 !important;
+            color: #fff !important;
+        }
+        .theme-ink { --card-bg: #ffffff; --text-color: #000000; --border-color: #000000; --accent: #000000; --bg-img: none; }
+        .theme-ink .top-section, .theme-ink .bottom-section, .theme-ink .center-word, .theme-ink .word-item, .theme-ink .header-box {
+            background: #fff !important;
+            color: #000 !important;
+            border: 2px solid #000 !important;
+        }
+        .theme-ink .zh-translation { color: #000; border-top-color: #000; }
+        .theme-ink .def-item { background: #fff; border: 1px solid #eee; }
+        .theme-ink .def-item div { color: #000 !important; }
+        body.ink-mode .lightbox { background: #fff; }
+        body.ink-mode .lightbox-close, body.ink-mode .lightbox-counter, body.ink-mode .lightbox-fs-btn {
+            background: #fff; border: 2px solid #000; color: #000;
+        }
+
         .card-container {
             width: 500px; 
             height: 1083px; 
@@ -264,7 +309,8 @@
     
     <div style="display: flex; gap: 10px; margin-bottom: 12px;">
         <button class="icon-btn" style="flex: 1; justify-content: center;" onclick="toggleFullScreen()">⛶ 全屏切换</button>
-        <button class="icon-btn" style="flex: 1; justify-content: center;" onclick="forceSync()">🔄 强制同步云端</button>
+        <button class="icon-btn" style="flex: 1; justify-content: center;" onclick="toggleInkMode()">🌓 墨水屏模式</button>
+        <button class="icon-btn" style="flex: 1; justify-content: center;" onclick="forceSync()">🔄 同步</button>
     </div>
     
     
@@ -350,6 +396,7 @@ let currentCategory = 'All';
 let touchStartX = 0;
 let isAborted = false;
 let currentRenderId = 0;
+let currentGlobalTheme = localStorage.getItem('app_theme') || 'oled';
 
 function speakTTS(text, event) {
     if(event) event.stopPropagation();
@@ -434,7 +481,7 @@ function abortGeneration() {
 
 function createBaseCardDOM(data) {
     const card = document.createElement('div');
-    const theme = "oled";
+    const theme = currentGlobalTheme;
     card.className = `card-container theme-${theme}`;
 
     const topSec = document.createElement('div');
@@ -585,7 +632,24 @@ function drawDynamicTree(cardDOM, data) {
     });
 }
 
+async function toggleInkMode() {
+    currentGlobalTheme = currentGlobalTheme === 'oled' ? 'ink' : 'oled';
+    localStorage.setItem('app_theme', currentGlobalTheme);
+    applyThemeToBody();
+    // 重新渲染当前分类以更新卡片样式
+    if (currentCategory) await renderCategory(currentCategory);
+}
+
+function applyThemeToBody() {
+    if (currentGlobalTheme === 'ink') {
+        document.body.classList.add('ink-mode');
+    } else {
+        document.body.classList.remove('ink-mode');
+    }
+}
+
 async function initApp() {
+    applyThemeToBody();
     const syncStatus = document.getElementById('syncStatus');
     try {
         allImportedData = await localforage.getItem('word_cards_db');
