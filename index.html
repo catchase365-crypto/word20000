@@ -15,6 +15,8 @@
         :root {
             --primary-color: #7d5a50;
             --bg-grid: #f4f8ff;
+            --card-w: 500px;
+            --card-h: 1083px;
         }
 
         * {
@@ -88,7 +90,7 @@
             background: white; border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden;
             display: flex; align-items: center; justify-content: center;
-            aspect-ratio: 9 / 19.5; position: relative;
+            aspect-ratio: var(--card-w) / var(--card-h); position: relative;
         }
         .result-img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .status-text { font-size: 14px; color: #666; text-align: center; padding: 10px; }
@@ -115,6 +117,8 @@
 
         /* 墨水屏模式 (E-Ink) */
         body.ink-mode {
+            --card-w: 750px;
+            --card-h: 1000px;
             background: #ffffff !important;
             color: #000000 !important;
         }
@@ -153,14 +157,14 @@
         .theme-ink .zh-translation { color: #000; border-top-color: #000; }
         .theme-ink .def-item { background: #fff; border: 1px solid #eee; }
         .theme-ink .def-item div { color: #000 !important; }
-        body.ink-mode .lightbox { background: #fff; }
-        body.ink-mode .lightbox-close, body.ink-mode .lightbox-counter, body.ink-mode .lightbox-fs-btn {
+        body.ink-mode .lightbox, body.ink-mode .lightbox-inner { background: #fff !important; }
+        body.ink-mode .lightbox-close, body.ink-mode .lightbox-counter, body.ink-mode .lightbox-fs-btn, body.ink-mode .lightbox-menu {
             background: #fff; border: 2px solid #000; color: #000;
         }
 
         .card-container {
-            width: 500px; 
-            height: 1083px; 
+            width: var(--card-w); 
+            height: var(--card-h); 
             flex-shrink: 0;
             contain: content; 
             transition: opacity 0.3s ease;
@@ -548,6 +552,7 @@ async function applyAutoFitLogic(cardDOM) {
     const enPara = cardDOM.querySelector('.en-paragraph');
     const zhPara = cardDOM.querySelector('.zh-translation');
     const botSec = cardDOM.querySelector('.bottom-section');
+    const limitH = currentGlobalTheme === 'ink' ? 980 : 1070;
 
     // [注释：卡片上中下的上部分中英文段翻译]
     // 初始应用较大字号
@@ -557,7 +562,7 @@ async function applyAutoFitLogic(cardDOM) {
     botSec.querySelectorAll('.def-item').forEach(el => el.style.fontSize = `${fontDef}px`);
 
     // 动态检测：如果总高度超过卡片高度，则逐步缩小字号
-    while (cardDOM.scrollHeight > 1070 && fontEn > 14) {
+    while (cardDOM.scrollHeight > limitH && fontEn > 14) {
         fontEn -= 0.4;
         fontZh -= 0.3;
         fontDef -= 0.2;
@@ -787,17 +792,19 @@ async function updateLightboxContent() {
     const winW = document.documentElement.clientWidth;
     const winH = document.documentElement.clientHeight;
     const winRatio = winW / winH;
+    const cardW = currentGlobalTheme === 'ink' ? 750 : 500;
+    const cardH = currentGlobalTheme === 'ink' ? 1000 : 1083;
 
-    // 自适应计算同屏卡片数 (卡片比例 500:1083 ≈ 0.46)
-    if (winRatio > 2.2) cardsPerView = 4;
-    else if (winRatio > 1.6) cardsPerView = 3;
-    else if (winRatio > 0.8) cardsPerView = 2;
+    // 自适应计算同屏卡片数
+    const cardRatio = cardW / cardH;
+    if (winRatio > cardRatio * 3.5) cardsPerView = 4;
+    else if (winRatio > cardRatio * 2.5) cardsPerView = 3;
+    else if (winRatio > cardRatio * 1.5) cardsPerView = 2;
     else cardsPerView = 1;
 
     const gap = 0;
-    const totalCardWidth = cardsPerView * 500;
-    // 预留少量边距 (0.98) 防止跨平台渲染引擎产生的 1px 溢出导致错位
-    const finalScale = Math.min(winW / totalCardWidth, winH / 1083) * 0.98;
+    const totalCardWidth = cardsPerView * cardW;
+    const finalScale = Math.min(winW / totalCardWidth, winH / cardH) * 0.98;
 
     // 批量触发当前组的懒加载
     const indices = [];
@@ -812,9 +819,11 @@ async function updateLightboxContent() {
     indices.forEach(idx => {
         const domNode = generatedDOMs[idx];
         if (domNode) {
+            const cardW = currentGlobalTheme === 'ink' ? 750 : 500;
+            const cardH = currentGlobalTheme === 'ink' ? 1000 : 1083;
             const wrapper = document.createElement('div');
-            wrapper.style.width = (500 * finalScale) + 'px';
-            wrapper.style.height = (1083 * finalScale) + 'px';
+            wrapper.style.width = (cardW * finalScale) + 'px';
+            wrapper.style.height = (cardH * finalScale) + 'px';
             wrapper.style.display = 'flex';
             wrapper.style.justifyContent = 'center';
             wrapper.style.alignItems = 'center';
@@ -834,12 +843,12 @@ async function updateLightboxContent() {
     // 导航箭头
     const navPrev = document.createElement('div');
     navPrev.innerHTML = '❮';
-    navPrev.style.cssText = 'position:absolute; left:20px; color:#00ff41; font-size:50px; cursor:pointer; z-index:2200; text-shadow:0 0 10px #000;';
+    navPrev.style.cssText = `position:absolute; left:20px; color:${currentGlobalTheme === 'ink' ? '#000' : '#00ff41'}; font-size:50px; cursor:pointer; z-index:2200; text-shadow:${currentGlobalTheme === 'ink' ? 'none' : '0 0 10px #000'};`;
     navPrev.onclick = (e) => { e.stopPropagation(); prevImage(); };
     
     const navNext = document.createElement('div');
     navNext.innerHTML = '❯';
-    navNext.style.cssText = 'position:absolute; right:20px; color:#00ff41; font-size:50px; cursor:pointer; z-index:2200; text-shadow:0 0 10px #000;';
+    navNext.style.cssText = `position:absolute; right:20px; color:${currentGlobalTheme === 'ink' ? '#000' : '#00ff41'}; font-size:50px; cursor:pointer; z-index:2200; text-shadow:${currentGlobalTheme === 'ink' ? 'none' : '0 0 10px #000'};`;
     navNext.onclick = (e) => { e.stopPropagation(); nextImage(); };
     
     inner.appendChild(navPrev);
