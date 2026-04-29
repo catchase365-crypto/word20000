@@ -54,7 +54,7 @@
         h3 { margin-top: 0; color: #fff; text-align: center; text-shadow: 0 0 10px rgba(255, 255, 255, 0.2); }
         .tips { font-size: 12px; color: #bbb; margin-bottom: 8px; display: block; text-align: center; }
         
-        input, textarea {
+        input, textarea, select {
             width: 100%;
             padding: 12px;
             margin: 8px 0;
@@ -316,6 +316,13 @@
         <button class="icon-btn" style="flex: 1; justify-content: center;" onclick="toggleInkMode()">🌓 墨水屏模式</button>
         <button class="icon-btn" style="flex: 1; justify-content: center;" onclick="forceSync()">🔄 同步</button>
     </div>
+
+    <div style="margin-bottom: 12px;">
+        <label style="font-size: 12px; color: #bbb; display: block; margin-bottom: 4px;">🎙️ 英语语音引擎选择 (自动保存)</label>
+        <select id="voiceSelect" onchange="saveVoicePreference()" style="background: #000; color: #00ff41; cursor: pointer;">
+            <option value="">正在加载语音库...</option>
+        </select>
+    </div>
     
     
     <div id="syncStatus" style="margin: 10px 0; padding: 12px; background: rgba(255, 235, 59, 0.1); border: 1px solid rgba(255, 235, 59, 0.3); border-radius: 8px; color: #ffeb3b; font-size: 13px; display: none; text-align: center; line-height: 1.5;"></div>
@@ -402,12 +409,41 @@ let isAborted = false;
 let currentRenderId = 0;
 let currentGlobalTheme = localStorage.getItem('app_theme') || 'oled';
 
+function populateVoiceList() {
+    if (typeof speechSynthesis === 'undefined') return;
+    const voices = speechSynthesis.getVoices();
+    const voiceSelect = document.getElementById('voiceSelect');
+    const savedVoice = localStorage.getItem('app_tts_voice');
+    
+    // 筛选英文语音
+    const enVoices = voices.filter(v => v.lang.startsWith('en'));
+    if (enVoices.length === 0 && voices.length > 0) { // 如果没有纯英，展示全部
+        voiceSelect.innerHTML = voices.map(v => `<option value="${v.voiceURI}" ${v.voiceURI === savedVoice ? 'selected' : ''}>${v.name} (${v.lang})</option>`).join('');
+    } else {
+        voiceSelect.innerHTML = enVoices.map(v => `<option value="${v.voiceURI}" ${v.voiceURI === savedVoice ? 'selected' : ''}>${v.name} (${v.lang})</option>`).join('');
+    }
+}
+
+if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = populateVoiceList;
+}
+
+function saveVoicePreference() {
+    const voiceSelect = document.getElementById('voiceSelect');
+    localStorage.setItem('app_tts_voice', voiceSelect.value);
+}
+
 function speakTTS(text, event) {
     if(event) event.stopPropagation();
     if(!text) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
+    const voiceSelect = document.getElementById('voiceSelect');
+    const voices = speechSynthesis.getVoices();
+    const selectedVoice = voices.find(v => v.voiceURI === voiceSelect.value);
+    if (selectedVoice) u.voice = selectedVoice;
     u.lang = 'en-US';
+    u.rate = 0.9; // 稍慢一点更清晰
     window.speechSynthesis.speak(u);
 }
 
@@ -655,6 +691,7 @@ function applyThemeToBody() {
 
 async function initApp() {
     applyThemeToBody();
+    populateVoiceList();
     const syncStatus = document.getElementById('syncStatus');
     try {
         allImportedData = await localforage.getItem('word_cards_db');
